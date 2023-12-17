@@ -16,30 +16,18 @@ class User:
     Represents a user in the encrypted communication system.
 
     Attributes:
-        REQUEST_TIMEOUT_MS (int): The timeout for message requests in milliseconds.
-        SESSION_MESSAGE_PRIORITY (int): The priority for session-related messages.
-        OTHER_MESSAGE_PRIORITY (int): The priority for other messages.
-        STOP_THREAD_PRIORITY (int): The priority for the stop sentinel.
-        DT_FMT (str): The date-time format used for timestamping messages.
-        STOP_THREAD_SENTINEL (object): The sentinel used to stop threads.
-
-    Args:
-        username (str): The username of the user.
-        pks (PubKeyServer): The public key server for the system.
-        network (Network): The network connection for the user.
-
-    Properties:
-        username (str): The username of the user.
-        public_key (bytes): The public key of the user.
-        current_time (str): The current time in the specified date-time format.
-
-    Methods:
-        create_session: Creates a session with another user.
-        send: Sends a message to another user.
-        send_raw: Sends a raw message for debugging or simulation purposes.
-        receive: Receives a message from the network.
-        start: Starts the user.
-        stop: Stops the user.
+        REQUEST_TIMEOUT_MS (int):
+            The timeout for message requests in milliseconds.
+        SESSION_MESSAGE_PRIORITY (int):
+            The priority for session-related messages.
+        OTHER_MESSAGE_PRIORITY (int):
+            The priority for other messages.
+        STOP_THREAD_PRIORITY (int):
+            The priority for the stop sentinel.
+        DT_FMT (str):
+            The date-time format used for timestamping messages.
+        STOP_THREAD_SENTINEL (object):
+            The sentinel used to stop threads.
     """
 
     REQUEST_TIMEOUT_MS = 5000
@@ -47,11 +35,22 @@ class User:
     OTHER_MESSAGE_PRIORITY = 1
     STOP_THREAD_PRIORITY = 10
     STOP_THREAD_SENTINEL = object()
-
     DT_FMT = '%Y%m%d-%H%M%S.%f'
 
     def __init__(self, username:str, pks:PubKeyServer, network:Network,
             start:bool=True):
+        """Initializes the user. User gets registered with the public key server and connects to the network.
+
+        Args:
+            username (str):
+                Unique user ID.
+            pks (PubKeyServer):
+                Public key server where the user will register their public key and get other users' public keys.
+            network (Network):
+                Network where the user will send and receive messages.
+            start (bool, optional):
+                Whether to start the user immediately. If False, the user will need to be started manually. Defaults to True.
+        """
         # Our unique User ID
         self._username = username
 
@@ -91,17 +90,23 @@ class User:
 
     @property
     def username(self)->str:
+        """Unique user ID."""
         return self._username
 
     @property
     def public_key(self)->bytes:
+        """Public key of the user."""
         return self._public_key
 
-    @property
-    def current_time(self)->str:
-        return datetime.utcnow().strftime(self.DT_FMT)
-    
     def start(self):
+        """Starts the user. After starting, the user can send and receive messages.
+
+        Raises:
+            RuntimeError:
+                If the user is already active.
+            RuntimeError:
+                If the user is currently in the process of being activated.
+        """
         if self._user_active is None:
             raise RuntimeError(f'User "{self._username}" currently in activation/deactivation process.')
         if self._user_active:
@@ -132,6 +137,14 @@ class User:
         print(colored(f'User "{self._username}" started.\n', 'green'))
 
     def stop(self):
+        """Stops the user. After stopping, the user cannot send or receive messages.
+
+        Raises:
+            RuntimeError:
+                If the user is already inactive.
+            RuntimeError:
+                If the user is currently in the process of being deactivated.
+        """
         if self._user_active is None:
             raise RuntimeError(f'User "{self._username}" currently in activation/deactivation process.')
         if not self._user_active:
@@ -172,23 +185,39 @@ class User:
 
         self._outgoing_message_queue.put((-priority, packaged_payload))
 
-    def create_session(self, recipient_username:str)->str:
+    def create_session(self, recipient_username:str)->int:
+        """Creates a session with the specified user.
+
+        Args:
+            recipient_username (str):
+                The username of the user with whom to create a session.
+
+        Raises:
+            RuntimeError:
+                If the user is not active.
+
+        Returns:
+            int:
+                Return code.
+        """
         # Check that user is active
         if not self._user_active:
             raise RuntimeError(f'User "{self._username}" is not active.')
         
         # Check if session already exists with the user
         if ('username', recipient_username) in self._active_sessions:
-            return
+            return 0
 
         # Check if session is in the process of being created with the user
         if ('username', recipient_username) in self._active_incoming_requests:
-            return
+            return 2
         if ('username', recipient_username) in self._active_incoming_requests:
-            return
+            return 2
 
         # Start the process of creating a new session with the user
         self._send_session_request(recipient_username)
+
+        return 2
 
     def _send_session_request(self, recipient_username:str):
         nonce = secrets.token_urlsafe(64)
@@ -268,6 +297,18 @@ class User:
         del self._active_sessions['session_id', session_id]
 
     def close_session_with_user(self, other_username:str):
+        """Closes the session with the specified user.
+
+        Args:
+            other_username (str):
+                The username of the user with whom to close the session.
+
+        Raises:
+            RuntimeError:
+                If the user is not active.
+            KeyError:
+                If no session exists with the specified user.
+        """
         # Check that user is active
         if not self._user_active:
             raise RuntimeError(f'User "{self._username}" is not active.')
@@ -279,7 +320,24 @@ class User:
         self._send_session_close_request(other_username)
         self._close_session(session_id)
 
-    def send(self, content, recipient_username:str):
+    def send(self, content, recipient_username:str)->int:
+        """Sends a message to the specified user.
+
+        Args:
+            content (JSONType):
+                The content of the message.
+            recipient_username (str):
+                The username of the user to whom to send the message.
+
+        Raises:
+            RuntimeError:
+                If the user is not active.
+
+        Returns:
+            int:
+                Return code.
+        """
+
         # Check that user is active
         if not self._user_active:
             raise RuntimeError(f'User "{self._username}" is not active.')
@@ -297,6 +355,8 @@ class User:
         self._session_waiting_queue.put((
             -self.OTHER_MESSAGE_PRIORITY,
             recipient_username, payload))
+        
+        return 0
 
     def send_raw(self, message):
         '''Function for debugging and/or simulating bad actors'''
@@ -366,7 +426,7 @@ class User:
                         continue
 
                 payload['certificate'] = self._sign_message(payload['content'])
-                payload['timestamp'] = self.current_time
+                payload['timestamp'] = datetime.utcnow().strftime(self.DT_FMT)
                 logging.debug(f'{self._username} packing message')
                 self._send_payload(payload, priority, recipient_username)
 
@@ -374,6 +434,16 @@ class User:
                 continue
 
     def receive(self, message)->int:
+        """Receives a message from the network.
+
+        Args:
+            message (str):
+                The message received from the network.
+            
+        Returns:
+            int:
+                Return code.
+        """
         # Don't want to messages not sent to us
         if message['header']['recipient'] != self._username:
             return 1
@@ -492,7 +562,7 @@ class User:
 
     def _encrypt_message(self, message:'JSONType', recipient_username:str)->tuple:
         return self._cm.encrypt_message(
-            message, recipient_username, self._pks(recipient_username))
+            message, self._pks(recipient_username))
 
     def _decrypt_message(self, encrypted_message:str, encrypted_key:str):
         return self._cm.decrypt_message(encrypted_message, encrypted_key, self._private_key)
@@ -502,4 +572,4 @@ class User:
 
     def _verify_signature(self, message:'JSONType', signature:str, author_username:str)->bool:
         return self._cm.verify_signature(
-            message, signature, author_username, self._pks(author_username))
+            message, signature, self._pks(author_username))

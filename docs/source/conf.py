@@ -2,12 +2,12 @@
 
 # -- Project information
 
-project = 'Lumache'
-copyright = '2021, Graziella'
-author = 'Graziella'
+project = 'Encrypted-Communication'
+copyright = '2023, Kartik Choudhary'
+author = 'Kartik Choudhary'
 
-release = '0.1'
-version = '0.1.0'
+release = '0.0'
+version = '0.0.1'
 
 # -- General configuration
 
@@ -29,7 +29,7 @@ templates_path = ['_templates']
 
 # -- Options for HTML output
 
-html_theme = 'sphinx_rtd_theme'
+# html_theme = 'sphinx_rtd_theme'
 
 # -- Options for EPUB output
 epub_show_urls = 'footnote'

@@ -1,7 +1,10 @@
-API
-===
+Documentation
+=============
 
-.. autosummary::
-   :toctree: generated
+This is the documentation for the `encrypted-communication` project.
 
-   lumache
+.. toctree::
+
+   encryption
+   user
+   helpers

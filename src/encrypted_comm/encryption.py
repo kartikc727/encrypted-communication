@@ -1,3 +1,7 @@
+""" This module handles the cryptographic requirements of the application, such
+    as encryption, decryption, signing, and verification of messages. 
+"""
+
 import base64
 import json
 import cryptography
@@ -8,8 +12,20 @@ from cryptography.hazmat.backends import default_backend as crypto_default_backe
 from cryptography.fernet import Fernet
 
 class CryptoManager:
+    """ This class contains the functions for encryption and verification of
+        messages. It also contains the functions for generating key pairs.
+    """
     @staticmethod
-    def gen_key_pair():
+    def gen_key_pair()->tuple[bytes, bytes]:
+        """Generates a public/private key pair for use in encryption and
+        decryption of messages.
+
+        Returns:
+            tuple[bytes, bytes]:
+                The first element is the private key, and the
+                second element is the public key.
+        """
+    
         key = rsa.generate_private_key(
             backend=crypto_default_backend(),
             public_exponent=65537,
@@ -28,22 +44,58 @@ class CryptoManager:
     
     @staticmethod
     def serialize(message:'JSONType')->bytes:
+        """Serializes a JSON object into a base64-encoded bytes object. The
+        serialized object can be encrypted and sent over the network.
+
+        Args:
+            message (JSONType):
+                A JSON-serializable object.
+
+        Returns:
+            bytes:
+                The serialized message.
+        """
         serialized = json.dumps(message)
         return base64.b64encode(serialized.encode('utf-8'))
     
     @staticmethod
     def deserialize(serialized:bytes)->'JSONType':
+        """Deserializes a base64-encoded bytes object into a JSON object. The
+        deserialized object is usually recovered after decryption and can be
+        used by the application.
+
+        Args:
+            serialized (bytes): The serialized message.
+
+        Returns:
+            JSONType: The deserialized message.
+        """
         serialized_str = base64.b64decode(serialized).decode('utf-8')
         return json.loads(serialized_str)
     
     @staticmethod
-    def encrypt_message(message:'JSONType', recipient_username:str, public_key:bytes)->tuple:
+    def encrypt_message(message:'JSONType', public_key:bytes)->tuple[str, str]:
+        """Encrypts a message using the recipient's public key. The message is
+        encrypted using AES encryption, and the AES key is encrypted using the
+        recipient's public key.
+
+        Args:
+            message (JSONType):
+                The message to be encrypted.
+            public_key (bytes):
+                The recipient's public key.
+
+        Returns:
+            tuple[str, str]:
+                The encrypted message and the encrypted AES key.
+        """
         # Create the AES key to encrypt our message
         aes_key = Fernet.generate_key()
         cipher_suite = Fernet(aes_key)
         
         # Encrypt our message using the key
-        encrypted_message = cipher_suite.encrypt(CryptoManager.serialize(message)).decode('utf-8')
+        encrypted_message = cipher_suite.encrypt(
+            CryptoManager.serialize(message)).decode('utf-8')
         
         # Encrypt the AES key using the recipient's public key
         public_key_obj = crypto_serialization.load_ssh_public_key(
@@ -60,7 +112,24 @@ class CryptoManager:
         return encrypted_message, base64.b64encode(ciphertext).decode('utf-8')
     
     @staticmethod
-    def decrypt_message(encrypted_message:str, encrypted_key:str, private_key:bytes):
+    def decrypt_message(encrypted_message:str, encrypted_key:str,
+            private_key:bytes)->'JSONType':
+        """Decrypts a message using the recipient's private key. The message is
+        decrypted using AES decryption, and the AES key is decrypted using the
+        recipient's private key.
+        
+        Args:
+            encrypted_message (str):
+                The encrypted message.
+            encrypted_key (str):
+                The encrypted AES key.
+            private_key (bytes):
+                The recipient's private key.
+
+        Returns:
+            JSONType:
+                The decrypted message.
+        """
         # Recover the AES key to decrypt the message
         private_key_obj = crypto_serialization.load_pem_private_key(
             private_key,
@@ -81,7 +150,20 @@ class CryptoManager:
         return CryptoManager.deserialize(decrypted_message)
     
     @staticmethod
-    def sign_message(message:'JSONType', private_key:bytes):
+    def sign_message(message:'JSONType', private_key:bytes)->str:
+        """Signs a message using the sender's private key. The SHA256 hash of
+        the message is signed using the sender's private key.
+
+        Args:
+            message (JSONType):
+                The message to be signed.
+            private_key (bytes):
+                The sender's private key.
+
+        Returns:
+            str:
+                The signature of the message.
+        """
         private_key_obj = crypto_serialization.load_pem_private_key(
             private_key,
             password=None,
@@ -98,7 +180,24 @@ class CryptoManager:
         return base64.b64encode(signature).decode('utf-8')
     
     @staticmethod
-    def verify_signature(message:'JSONType', signature:str, author_username:str, public_key:bytes)->bool:
+    def verify_signature(message:'JSONType', signature:str,
+            public_key:bytes)->bool:
+        """Verifies the signature of a message using the sender's public key.
+        The SHA256 hash of the message is verified against the signature using
+        the sender's public key.
+
+        Args:
+            message (JSONType):
+                The message to be verified.
+            signature (str):
+                The signature of the message.
+            public_key (bytes):
+                The sender's public key.
+
+        Returns:
+            bool:
+                True if the signature is valid, False otherwise.
+        """
         public_key_obj = crypto_serialization.load_ssh_public_key(
             public_key,
             backend=crypto_default_backend())
