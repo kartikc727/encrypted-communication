@@ -1,4 +1,4 @@
-from encrypted_comm.helpers import Network
+from secure_engine.helpers import Network
 from dummy_classes import DummyPubKeyServer, DummyUser
 
 def test_network_connect():
