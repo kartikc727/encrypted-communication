@@ -1,2 +1,0 @@
-"""Encrypted Communication Module
-"""

@@ -8,8 +8,8 @@ from threading import Thread
 import queue
 from termcolor import colored
 
-from encrypted_comm.helpers import Network, PubKeyServer, MultiKeyDict
-from encrypted_comm.encryption import CryptoManager
+from .helpers import Network, PubKeyServer, MultiKeyDict
+from .encryption import CryptoManager
 
 class User:
     """

@@ -8,10 +8,10 @@ version = "0.0.1"
 dependencies = [
     "cryptography",
     "termcolor"]
-requires-python = ">=3.8"
+requires-python = ">=3.13"
 authors = [
     {name = "Kartik Choudhary"},
-    {email = "kartikchoudh@umass.edu"}]
+    {email = "dev@kartikc.com"}]
 description = "A simple encrypted communication system"
 readme = "README.rst"
 license = {file = "LICENSE.txt"}
@@ -32,4 +32,6 @@ Changelog = "https://github.com/me/spam/blob/master/CHANGELOG.md"
 server-cli = "encrypted_comm:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/encrypted_comm"]
+packages = [
+    "src/app",
+    "src/secure_engine"]
